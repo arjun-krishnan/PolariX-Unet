@@ -18,24 +18,24 @@ def gaussian(x, a, x0, sd):
 
 
 def aug(x, y, a_sub, sd_add, x0_add, debug=False):
-    
+
     initial_guess = [max(y), np.argmax(y), len(x)/10]
-    
+
     try:
         params, cov = curve_fit(gaussian, x, y, p0=initial_guess)
     except:
         return y
-    
+
     a_fit, x0_fit, sd_fit = params
-    
+
     y_sub = gaussian(x, a=a_sub*a_fit, x0=x0_fit, sd=sd_fit)
 
     a_add = a_sub*a_fit*sd_fit/(sd_add*sd_fit)
-    x0_add = x0_fit + x0_add * len(x) 
+    x0_add = x0_fit + x0_add * len(x)
     y_add = gaussian(x, a_add, x0_add, sd_add*sd_fit)
     y_aug = y - y_sub + y_add
     y_aug = np.clip(y_aug, a_min=0.0, a_max=255.0)
-    
+
     if debug:
         print(params)
         plt.figure()
@@ -50,12 +50,12 @@ def aug(x, y, a_sub, sd_add, x0_add, debug=False):
 def heaviside(x, center, width, epsilon=1.0):
     e1 = center - width/2
     e2 = center + width/2
-    
+
     half1 = 0.5 + 0.5 * (2/np.pi) * np.arctan((x-e1)/epsilon)
     half2 = 1 - (0.5 + 0.5 * (2/np.pi) * np.arctan((x-e2)/epsilon))
-    
+
     window = np.concatenate((half1[:center], half2[center:]))
-    
+
     return window
 
 
@@ -68,7 +68,7 @@ def aug_convolution(x, y, a, scale):
     x_k = np.linspace(0, 10, len(x))
     kernel = gamma.pdf(x_k, a, scale=scale)
     y_aug = convolve(y, kernel, mode='full') / sum(kernel)
-    
+
     return y_aug
 
 
@@ -86,8 +86,8 @@ def random_waveform(num_samples, num_components, t_max):
     for i in range(num_components):
         waveform += amplitudes[i] * np.sin(2 * np.pi * frequencies[i] * time + phases[i])  # Add sine component
         waveform += amplitudes[i] * np.cos(2 * np.pi * frequencies[i] * time + phases[i])  # Add cosine component
-        
-    return waveform    
+
+    return waveform
 
 
 def plot_polarix(filename):
@@ -103,6 +103,38 @@ def plot_polarix(filename):
         axs[row, col].imshow(images[i])
 
 
+def augmentations(image):
+    img = np.copy(image)
+    kernel_size = 5
+    img = cv2.medianBlur(img, kernel_size)
+    img_aug = np.copy(img)
+
+    tx = np.random.randint(-80,80)
+    ty = np.random.randint(-50,50)
+    translation_matrix = np.float32([[1, 0, tx], [0, 1, ty]])
+
+    translated_image = cv2.warpAffine(img, translation_matrix, (img.shape[1], img.shape[0]))
+
+    x = np.array([i for i in range(img.shape[1])])
+    w = np.array([i for i in range(img.shape[-1])])
+    window = heaviside(w, 450, 100, epsilon=10.5)
+
+    conv_a = 1
+    scale = window * 1 * (1 + random_waveform(len(window), 10, t_max=40))
+
+    for i in range(len(w)):
+        # scale_aug = scale[i] * (1 + random_waveform(len(window), 10))[i]
+        y = img.T[i]
+        y_aug = aug_convolution(x, y, conv_a, scale[i])
+        idx = int(log_fn(scale[i], *params))
+        img_aug.T[i] = y_aug[idx:idx + len(y)] * (1 + (random_waveform(len(y), 10, t_max=10) * scale[i]))
+
+    M, N = (np.array(img.shape) // 5)
+    img = cv2.resize(img, (N, M))
+    img_aug = cv2.resize(img_aug, (N, M))
+
+    return img, img_aug
+
 def make_train_data():
 
     data_dir = Path("data")
@@ -113,28 +145,22 @@ def make_train_data():
 
     for sase_off_set in sase_off:
         images_sase_off = np.load(sase_off_set).astype('float32')
+        for img_off in images_sase_off:
+            for i in range(10):
+                imgx, imgy = augmentations(img_off)
+                train_X.append(imgx)
+                train_Y.append(imgy)
 
-images_sase_off = np.load(sase_off[2]).astype('float32')
+
 # images_sase_on  = np.load(data_dir / "lhpulses_zero-sase_on-polarix-2023-11-08T032511.npy").astype('float32')
 
-
-img = np.copy(images_sase_off[6])
-
-kernel_size = 5
-img = cv2.medianBlur(img, kernel_size)
-
-img_aug = np.copy(img)
-x = np.array([i for i in range(img.shape[1])])
-w = np.array([i for i in range(img.shape[-1])])
-window = heaviside(w, 450,100, epsilon=10.5)
-
-s = [0,0.1,0.3,0.5,1,1.5,2,2.5,3,3.5,4]
-ii = [0,5,15,25,35,40,45,50,55,60,70]
+s = [0, 0.1, 0.3, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
+ii = [0, 5, 15, 25, 35, 40, 45, 50, 55, 60, 70]
 params, cov = curve_fit(log_fn, s, ii, p0=[40])
 
 a = 1
 scale = window * 1 * (1 + random_waveform(len(window), 10, t_max=40))
-                      
+
 for i in range(len(w)):
     # scale_aug = scale[i] * (1 + random_waveform(len(window), 10))[i]
     y = img.T[i]
@@ -146,7 +172,7 @@ for i in range(len(w)):
 M, N = (np.array(img.shape) // 5)
 img = cv2.resize(img,(N,M))
 img_aug = cv2.resize(img_aug,(N,M))
-    
+
 plt.figure()
 plt.imshow(img)
 plt.figure()
