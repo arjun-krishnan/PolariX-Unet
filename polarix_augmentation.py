@@ -106,6 +106,7 @@ def plot_polarix(filename):
 
 def augmentations(image):
     img = np.copy(image)
+    img = img / np.max(img)
     kernel_size = 5
     img = cv2.medianBlur(img, kernel_size)
     img_aug = np.copy(img)
