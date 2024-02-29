@@ -10,6 +10,7 @@ from scipy.optimize import curve_fit
 from scipy.signal import convolve
 from scipy.stats import gamma
 from pathlib import Path
+from tqdm import tqdm
 import cv2
 
 
@@ -117,7 +118,9 @@ def augmentations(image):
 
     x = np.array([i for i in range(img.shape[1])])
     w = np.array([i for i in range(img.shape[-1])])
-    window = heaviside(w, 450, 100, epsilon=10.5)
+    window_center = np.random.randint(400,500)
+    window_width = np.random.randint(50, 150)
+    window = heaviside(w, window_center, window_width, epsilon=10.5)
 
     conv_a = 1
     scale = window * 1 * (1 + random_waveform(len(window), 10, t_max=40))
@@ -135,21 +138,25 @@ def augmentations(image):
 
     return img, img_aug
 
+
 def make_train_data():
 
     data_dir = Path("data")
     sase_off_dir = data_dir / "sase-off"
-    sase_off = [file for file in sase_off_dir.glob("*.npy")]
+    sase_off_files = [file for file in sase_off_dir.glob("*.npy")]
     train_X = []
     train_Y = []
 
-    for sase_off_set in sase_off:
-        images_sase_off = np.load(sase_off_set).astype('float32')
-        for img_off in images_sase_off:
+    for sase_off in tqdm(sase_off_files[0:2], desc='outer loop'):
+        images_sase_off = np.load(sase_off).astype('float32')
+        for img_off in tqdm(images_sase_off, desc='inner loop'):
             for i in range(10):
                 imgx, imgy = augmentations(img_off)
                 train_X.append(imgx)
                 train_Y.append(imgy)
+
+    print(f"Size of the training set : {len(train_X)}")
+    return train_X, train_Y
 
 
 # images_sase_on  = np.load(data_dir / "lhpulses_zero-sase_on-polarix-2023-11-08T032511.npy").astype('float32')
@@ -158,23 +165,4 @@ s = [0, 0.1, 0.3, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
 ii = [0, 5, 15, 25, 35, 40, 45, 50, 55, 60, 70]
 params, cov = curve_fit(log_fn, s, ii, p0=[40])
 
-a = 1
-scale = window * 1 * (1 + random_waveform(len(window), 10, t_max=40))
-
-for i in range(len(w)):
-    # scale_aug = scale[i] * (1 + random_waveform(len(window), 10))[i]
-    y = img.T[i]
-    y_aug = aug_convolution(x, y, a, scale[i])
-    idx = int(log_fn(scale[i], *params))
-    noise = np.random.normal(1, scale[i]/10, len(y))
-    img_aug.T[i] = y_aug[idx:idx+len(y)] * (1 + (random_waveform(len(y), 10, t_max=10) * scale[i]))     # * noise
-
-M, N = (np.array(img.shape) // 5)
-img = cv2.resize(img,(N,M))
-img_aug = cv2.resize(img_aug,(N,M))
-
-plt.figure()
-plt.imshow(img)
-plt.figure()
-plt.imshow(img_aug)
-plt.show()
+train_X, train_Y = make_train_data()
