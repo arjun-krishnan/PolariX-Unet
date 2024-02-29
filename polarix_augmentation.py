@@ -103,10 +103,20 @@ def plot_polarix(filename):
         axs[row, col].imshow(images[i])
 
 
-data_dir = Path("data")
+def make_train_data():
 
-images_sase_off = np.load(data_dir / "lhpulses_zero-sase_off-polarix-2023-11-08T032809.npy").astype('float32')
-images_sase_on  = np.load(data_dir / "lhpulses_zero-sase_on-polarix-2023-11-08T032511.npy").astype('float32')
+    data_dir = Path("data")
+    sase_off_dir = data_dir / "sase-off"
+    sase_off = [file for file in sase_off_dir.glob("*.npy")]
+    train_X = []
+    train_Y = []
+
+    for sase_off_set in sase_off:
+        images_sase_off = np.load(sase_off_set).astype('float32')
+
+images_sase_off = np.load(sase_off[2]).astype('float32')
+# images_sase_on  = np.load(data_dir / "lhpulses_zero-sase_on-polarix-2023-11-08T032511.npy").astype('float32')
+
 
 img = np.copy(images_sase_off[6])
 
@@ -126,12 +136,12 @@ a = 1
 scale = window * 1 * (1 + random_waveform(len(window), 10, t_max=40))
                       
 for i in range(len(w)):
-    #scale_aug = scale[i] * (1 + random_waveform(len(window), 10))[i]
+    # scale_aug = scale[i] * (1 + random_waveform(len(window), 10))[i]
     y = img.T[i]
     y_aug = aug_convolution(x, y, a, scale[i])
     idx = int(log_fn(scale[i], *params))
     noise = np.random.normal(1, scale[i]/10, len(y))
-    img_aug.T[i] = y_aug[idx:idx+len(y)] #* (1 + (random_waveform(len(y), 10) * scale[i]))#* noise 
+    img_aug.T[i] = y_aug[idx:idx+len(y)] * (1 + (random_waveform(len(y), 10, t_max=10) * scale[i]))     # * noise
 
 M, N = (np.array(img.shape) // 5)
 img = cv2.resize(img,(N,M))
