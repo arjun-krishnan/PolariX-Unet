@@ -12,8 +12,10 @@ from scipy.stats import gamma
 from pathlib import Path
 import cv2
 
+
 def gaussian(x, a, x0, sd):
     return a * np.exp(-0.5 * ((x - x0) / sd)**2)
+
 
 def aug(x, y, a_sub, sd_add, x0_add, debug=False):
     
@@ -22,7 +24,7 @@ def aug(x, y, a_sub, sd_add, x0_add, debug=False):
     try:
         params, cov = curve_fit(gaussian, x, y, p0=initial_guess)
     except:
-        return(y)
+        return y
     
     a_fit, x0_fit, sd_fit = params
     
@@ -32,19 +34,20 @@ def aug(x, y, a_sub, sd_add, x0_add, debug=False):
     x0_add = x0_fit + x0_add * len(x) 
     y_add = gaussian(x, a_add, x0_add, sd_add*sd_fit)
     y_aug = y - y_sub + y_add
-    y_aug = np.clip(y_aug, a_min = 0.0, a_max = 255.0)
+    y_aug = np.clip(y_aug, a_min=0.0, a_max=255.0)
     
     if debug:
         print(params)
         plt.figure()
-        plt.plot(x,y)
-        plt.plot(x,gaussian(x,*params))
-        plt.plot(x,y_sub)
-        plt.plot(x,y_add)
+        plt.plot(x, y)
+        plt.plot(x, gaussian(x, *params))
+        plt.plot(x, y_sub)
+        plt.plot(x, y_add)
         plt.plot(x, y_aug)
-    return(y_aug)
+    return y_aug
 
-def heaviside(x, center, width, epsilon=1):
+
+def heaviside(x, center, width, epsilon=1.0):
     e1 = center - width/2
     e2 = center + width/2
     
@@ -55,25 +58,28 @@ def heaviside(x, center, width, epsilon=1):
     
     return window
 
+
 def log_fn(x, a):
     y = a * np.log(x+1)
     return y
 
-def aug_convolute(x,y, a, scale):
-    x_k = np.linspace(0,10,len(x))
+
+def aug_convolution(x, y, a, scale):
+    x_k = np.linspace(0, 10, len(x))
     kernel = gamma.pdf(x_k, a, scale=scale)
     y_aug = convolve(y, kernel, mode='full') / sum(kernel)
     
     return y_aug
 
-def random_waveform(num_samples, num_components):
+
+def random_waveform(num_samples, num_components, t_max):
     # Generate random frequencies, phases, and amplitudes for each component
     frequencies = np.random.uniform(0.5, 2, num_components)  # Random frequencies between 0.5 and 2 Hz
     phases = np.random.uniform(0, 2*np.pi, num_components)  # Random phases between 0 and 2*pi
-    amplitudes = np.random.uniform(0.02,0.025, num_components)  # Random amplitudes between 0.5 and 2
+    amplitudes = np.random.uniform(0.02, 0.025, num_components)  # Random amplitudes between 0.5 and 2
 
     # Time array
-    time = np.linspace(0, 40, num_samples)
+    time = np.linspace(0, t_max, num_samples)
 
     # Generate waveform by summing sine and cosine components
     waveform = np.zeros(num_samples)
@@ -82,6 +88,20 @@ def random_waveform(num_samples, num_components):
         waveform += amplitudes[i] * np.cos(2 * np.pi * frequencies[i] * time + phases[i])  # Add cosine component
         
     return waveform    
+
+
+def plot_polarix(filename):
+    images = np.load(filename).astype('float32')
+    N = int(images.shape[0])
+    a = 5
+    b = int(np.ceil(N / a))
+    fig, axs = plt.subplots(a, b)
+
+    for i in range(N):
+        row = i // b
+        col = i % b
+        axs[row, col].imshow(images[i])
+
 
 data_dir = Path("data")
 
@@ -103,20 +123,19 @@ ii = [0,5,15,25,35,40,45,50,55,60,70]
 params, cov = curve_fit(log_fn, s, ii, p0=[40])
 
 a = 1
-scale = window * 1 * (1 + random_waveform(len(window), 10))
+scale = window * 1 * (1 + random_waveform(len(window), 10, t_max=40))
                       
 for i in range(len(w)):
     #scale_aug = scale[i] * (1 + random_waveform(len(window), 10))[i]
     y = img.T[i]
-    #y_aug = aug(x,y, a_sub=0.8*window[i], sd_add = 5, x0_add=0.2)
-    y_aug = aug_convolute(x, y, a, scale[i])
-    idx = int(log_fn(scale[i], *params))     # This 42 is from fitting the scale and shift values
+    y_aug = aug_convolution(x, y, a, scale[i])
+    idx = int(log_fn(scale[i], *params))
     noise = np.random.normal(1, scale[i]/10, len(y))
     img_aug.T[i] = y_aug[idx:idx+len(y)] #* (1 + (random_waveform(len(y), 10) * scale[i]))#* noise 
 
-M, N = (np.array(img.shape) / 5)
-img = cv2.resize(img,(int(N),int(M)))
-img_aug = cv2.resize(img_aug,(int(N),int(M)))
+M, N = (np.array(img.shape) // 5)
+img = cv2.resize(img,(N,M))
+img_aug = cv2.resize(img_aug,(N,M))
     
 plt.figure()
 plt.imshow(img)
