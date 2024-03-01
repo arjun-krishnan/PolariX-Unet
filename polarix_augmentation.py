@@ -119,22 +119,24 @@ def augmentations(image):
 
     x = np.array([i for i in range(img.shape[1])])
     w = np.array([i for i in range(img.shape[-1])])
+
     window_center = np.random.randint(400,500)
     window_width = np.random.randint(50, 150)
-    window = heaviside(w, window_center, window_width, epsilon=10.5)
+    epsilon = np.random.randint(8, 12)
+    window = heaviside(w, window_center, window_width, epsilon=epsilon)
 
     conv_a = 1
     scale = window * 1 * (1 + random_waveform(len(window), 10, t_max=40))
 
     for i in range(len(w)):
         # scale_aug = scale[i] * (1 + random_waveform(len(window), 10))[i]
-        y = img.T[i]
+        y = translated_image.T[i]
         y_aug = aug_convolution(x, y, conv_a, scale[i])
         idx = int(log_fn(scale[i], *params))
         img_aug.T[i] = y_aug[idx:idx + len(y)] * (1 + (random_waveform(len(y), 10, t_max=10) * scale[i]))
 
     M, N = (np.array(img.shape) // 5)
-    img = cv2.resize(img, (N, M))
+    img = cv2.resize(translated_image, (N, M))
     img_aug = cv2.resize(img_aug, (N, M))
 
     return img, img_aug
@@ -148,13 +150,14 @@ def make_train_data():
     train_X = []
     train_Y = []
 
-    for sase_off in tqdm(sase_off_files[0:2], desc='outer loop'):
+    for sase_off in tqdm(sase_off_files[:], desc='outer loop'):
         images_sase_off = np.load(sase_off).astype('float32')
         for img_off in tqdm(images_sase_off, desc='inner loop'):
             for i in range(10):
                 imgx, imgy = augmentations(img_off)
                 train_X.append(imgx)
                 train_Y.append(imgy)
+
 
     print(f"Size of the training set : {len(train_X)}")
     return train_X, train_Y
