@@ -6,6 +6,7 @@ Created on Mon Feb 26 15:13:31 2024
 """
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 from scipy.optimize import curve_fit
 from scipy.signal import convolve
 from scipy.stats import gamma
@@ -142,16 +143,15 @@ def augmentations(image):
     return img, img_aug
 
 
-def make_train_data():
-
-    data_dir = Path("data")
-    sase_off_dir = data_dir / "sase-off"
+def make_train_data(filepath):
+    sase_off_dir = Path(filepath)
     sase_off_files = [file for file in sase_off_dir.glob("*.npy")]
+    print(sase_off_files)
     train_X = []
     train_Y = []
 
     for sase_off in tqdm(sase_off_files[:], desc='outer loop'):
-        images_sase_off = np.load(sase_off).astype('float32')
+        images_sase_off = np.load(sase_off).astype(np.float32)
         for img_off in tqdm(images_sase_off, desc='inner loop'):
             for i in range(10):
                 imgx, imgy = augmentations(img_off)
@@ -169,4 +169,10 @@ s = [0, 0.1, 0.3, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
 ii = [0, 5, 15, 25, 35, 40, 45, 50, 55, 60, 70]
 params, cov = curve_fit(log_fn, s, ii, p0=[40])
 
-train_X, train_Y = make_train_data()
+if __name__ == "__main__":
+
+    filepath = "data/sase-off"
+    train_X, train_Y = make_train_data(filepath)
+
+    train_data = pd.DataFrame({'train_X' : train_X , 'train_Y' : train_Y})
+    train_data.to_pickle('data/train_data.pkl')
