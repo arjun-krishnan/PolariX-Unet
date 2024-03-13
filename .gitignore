@@ -6,3 +6,4 @@ data/*
 !data/lhpulses_zero-sase_off-polarix-2023-11-08T021945.npy
 !data/traindata.csv
 plots/results_main
+test_data/*
