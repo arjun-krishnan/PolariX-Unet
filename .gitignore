@@ -7,3 +7,4 @@ data/*
 !data/traindata.csv
 plots/results_main
 test_data/*
+docs/*
