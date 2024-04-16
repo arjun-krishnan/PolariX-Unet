@@ -1,0 +1,33 @@
+Some paths/info if you already want to look into the data: 
+ 
+jan 24:
+filepath = '/asap3/flash/gpfs/fl21/2024/data/11019435/raw/hdf/online-0/fl2user2'
+ 
+within the h5 file:
+polarixpath = '/zraw/FLASH.DIAG/CAMERA/OTR9FL2XTDS/dGroup/value'
+gmdpath = '/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/'  # -> first value/index0
+chargepath =  '/FL1/Electron Diagnostic/Bunch charge/at gun/'
+runcomments = {
+    50633 : 'two pulses Sase off',
+    50632: 'two pulses ',
+    50631: 'also cool short pulse LH on SASE killed ',
+    50630: 'also cool short pulse LH on SASE on ',
+    50629: ' very cool short pulse LH off SASE on',
+    50628: 'very cool short pulse LH off SASE killed',
+    50627: 'very cool short pulse lasing off',
+    50626:' very cool short pulse  ',
+    50625: 'lasing off ',
+    50624: 'dark images polarix',
+}
+ 
+ 
+nov 23:
+main_path =  "/asap3/flash/gpfs/fl21/2023/data/11019168/raw/hdf/online-0/fl2user2/"
+ 
+ 
+ref_dict = { # key is runnumber, value is  lasing off reference
+    49470: 49473,
+    49474:  49477,
+    49484: 49487,
+    49491: 49489
+}
