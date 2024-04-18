@@ -31,3 +31,44 @@ ref_dict = { # key is runnumber, value is  lasing off reference
     49484: 49487,
     49491: 49489
 }
+
+here is some additional information:
+
+
+1) to access internal desy websides, I think this is necessary for the logbooks:
+ - (on your computer) ssh -D 2280 username@bastion.desy.de
+
+ - in your browser (Firefox): Settings - scroll down to Network Settings :
+  manual proxy configuration
+   SOCKS Host: localhost
+   Port: 2280  
+   activate SOCKS v5
+   Activate the Option "Proxy DNS when using SOCKS v5"
+
+
+2 ) Links to logbooks:
+
+
+202401:
+machine logbook:
+https://ttfinfo.desy.de/TTFelog/show.jsp?dir=/2024/04/24.01_n&pos=2024-01-25T03:54:28
+
+THz logbook:
+https://ttfinfo.desy.de/Flash_THzStreakingelog/show.jsp?dir=/2024/04&pos=2024-01-25T05:40:02
+
+
+202311:
+
+machine logbook:
+https://ttfinfo.desy.de/TTFelog/show.jsp?dir=/2023/47/21.11_a&pos=2023-11-21T19:56:51
+
+
+THz logbook:
+https://ttfinfo.desy.de/Flash_THzStreakingelog/show.jsp?dir=/2023/47&pos=2023-11-21T21:04:31
+
+
+
+3) calibration:
+
+search for 'calibration' in the logbooks. For example here: https://ttfinfo.desy.de/TTFelog/show.jsp?dir=/2024/04/24.01_n&pos=2024-01-25T06:11:26 you have an energy calibration of 0.035 Mev per Pixel and 0.57 fs per pixel. T
+his is valid for the 2024 beam time. For Nov 2023 we have to multiply all the values by two, because we had a binning by 2. You should check your calibration by comparing the calibrated images/profiles with the logbook, eg. https://ttfinfo.desy.de/TTFelog/show.jsp?dir=/2023/47/21.11_a&pos=2023-11-21T17:53:04
