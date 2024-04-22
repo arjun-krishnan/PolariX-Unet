@@ -14,6 +14,7 @@ from pathlib import Path
 from tqdm import tqdm
 import cv2
 
+#%%
 
 def gaussian(x, a, x0, sd):
     return a * np.exp(-0.5 * ((x - x0) / sd)**2)
@@ -135,7 +136,7 @@ def augmentations(image):
         y_aug = aug_convolution(x, y, conv_a, scale[i])
         idx = int(log_fn(scale[i], *params))
         img_aug.T[i] = y_aug[idx:idx + len(y)] * (1 + (random_waveform(len(y), 10, t_max=10) * scale[i]))
-
+    
     M, N = (np.array(img.shape) // 5)
     img = cv2.resize(translated_image, (N, M))
     img_aug = cv2.resize(img_aug, (N, M))
@@ -162,6 +163,7 @@ def make_train_data(filepath):
     print(f"Size of the training set : {len(train_X)}")
     return train_X, train_Y
 
+#%%
 
 # images_sase_on  = np.load(data_dir / "lhpulses_zero-sase_on-polarix-2023-11-08T032511.npy").astype('float32')
 
@@ -169,6 +171,7 @@ s = [0, 0.1, 0.3, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
 ii = [0, 5, 15, 25, 35, 40, 45, 50, 55, 60, 70]
 params, cov = curve_fit(log_fn, s, ii, p0=[40])
 
+#%%
 if __name__ == "__main__":
 
     filepath = "data/sase-off"
