@@ -11,10 +11,8 @@ from scipy.optimize import curve_fit
 from scipy.stats import gamma
 from scipy.signal import convolve
 from tqdm import tqdm
-import glob
-import cv2
-import h5py
-import datetime
+from pathlib import Path
+import cv2, h5py, datetime
 
 #%%
 
@@ -123,12 +121,14 @@ def augmentations(image, aug_conv=False):
     
     heaviside_window = np.random.choice([True, False])
     if heaviside_window:
-        window_center = np.random.randint(500,750)
+        #window_center = np.random.randint(500,750)
+        window_center = np.random.randint(300, 500)
         window_width = np.random.randint(30, 100)
         epsilon = np.random.randint(8, 12)
         window = heaviside(w, window_center, window_width, epsilon=epsilon)
     else:
-        window_center = np.random.randint(400, 600, 2)
+        #window_center = np.random.randint(400, 600, 2)
+        window_center = np.random.randint(300, 500, 2)
         window_width = np.random.randint(10, 50, 2)
         window_amp = np.random.uniform(0.3, 0.8, 2)
         window = gaussian(w, window_amp[0], window_center[0], window_width[0]) + \
@@ -178,6 +178,26 @@ def make_train_data(filepath):
     print(f"Size of the training set : {len(train_X)}")
     return train_X, train_Y
 
+def make_train_data_npy(filepath):
+    sase_off_dir = Path(filepath)
+    sase_off_files = [file for file in sase_off_dir.glob("*.npy")]
+    print(sase_off_files)
+    train_X = []
+    train_Y = []
+
+    for sase_off in tqdm(sase_off_files[:], desc='Files'):
+        images_sase_off = np.load(sase_off).astype(np.float32)
+        for img_off in tqdm(images_sase_off, desc='Images'):
+            for i in range(3):
+                aug_conv = np.random.choice([True, False])
+                imgy, imgx = augmentations(img_off)
+                train_X.append(imgx)
+                train_Y.append(imgy)
+
+
+    print(f"Size of the training set : {len(train_X)}")
+    return train_X, train_Y
+
 #%%
 
 def log_fn(x, a):
@@ -191,13 +211,25 @@ params, cov = curve_fit(log_fn, s, ii, p0=[40])
 
 #%%
 if __name__ == "__main__":
-
-    filepath = "run_50631_data.h5"
-    train_X, train_Y = make_train_data(filepath)
-
-    train_data = pd.DataFrame({'train_X' : train_X , 'train_Y' : train_Y})
     
-    current_datetime = datetime.datetime.now()
-    datetime_string = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+    form = "npy" # "h5"
     
-    train_data.to_pickle(f'data/train_data_50631-{datetime_string}.pkl')
+    if form == "h5":
+        
+        filepath = "run_50631_data.h5"
+        train_X, train_Y = make_train_data(filepath)
+    
+        train_data = pd.DataFrame({'train_X' : train_X , 'train_Y' : train_Y})
+        
+        current_datetime = datetime.datetime.now()
+        datetime_string = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+        
+        train_data.to_pickle(f'data/train_data_50631-{datetime_string}.pkl')
+        
+    if form == "npy":
+        
+        filepath = "data/sase-off"
+        train_X, train_Y = make_train_data_npy(filepath)
+
+        train_data = pd.DataFrame({'train_X' : train_X , 'train_Y' : train_Y})
+        train_data.to_pickle('data/train_data_2023_11-08.pkl')
