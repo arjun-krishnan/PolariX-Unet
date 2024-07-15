@@ -43,13 +43,13 @@ def aug(x, y, a_sub, sd_add, x0_add, debug=False):
     y_aug = np.clip(y_aug, a_min=0.0, a_max=255.0)
     
     if debug:
-        print(params)
         plt.figure()
-        plt.plot(x, y)
-        plt.plot(x, gaussian(x, *params))
-        plt.plot(x, y_sub)
-        plt.plot(x, y_add)
-        plt.plot(x, y_aug)
+        plt.plot(x/5, y, linewidth=2, label='original')
+        #plt.plot(x, gaussian(x, *params))
+        plt.plot(x/5, y_sub, '--', label='subtracted')
+        plt.plot(x/5, y_add, '--', label='added')
+        plt.plot(x/5, y_aug, linewidth=2, label='augmented')
+        plt.legend()
     return y_aug
 
 def heaviside(x, center, width, epsilon=1.0):
@@ -93,13 +93,22 @@ def plot_polarix(filename):
         col = i % b
         axs[row, col].imshow(images[i])
 
-def aug_convolution(x, y, a, scale):
+def aug_convolution(x, y, a, scale, debug=False):
     if scale < 0.02:
         return y
     
     x_k = np.linspace(0, 10, len(x))
     kernel = gamma.pdf(x_k, a, scale=scale)
     y_aug = convolve(y, kernel, mode='full') / sum(kernel)
+    
+    if debug == True:
+        y_ax = np.linspace(0, len(y), len(y)) 
+        y_ax_aug = np.linspace(0, len(y_aug), len(y_aug)) 
+        plt.figure()
+        plt.plot(y_ax/5,kernel)
+        plt.figure()
+        plt.plot(y_ax/5,y)
+        plt.plot(y_ax_aug/5,y_aug)
 
     return y_aug
 
@@ -121,40 +130,50 @@ def augmentations(image, aug_conv=False):
     
     heaviside_window = np.random.choice([True, False])
     if heaviside_window:
-        #window_center = np.random.randint(500,750)
-        window_center = np.random.randint(300, 500)
-        window_width = np.random.randint(30, 100)
+        #window_width = np.random.randint(30, 100)
+        window_center = np.random.randint(300, 600) #(400,600)
+        window_width = np.random.randint(150, 350)
         epsilon = np.random.randint(8, 12)
         window = heaviside(w, window_center, window_width, epsilon=epsilon)
     else:
-        #window_center = np.random.randint(400, 600, 2)
-        window_center = np.random.randint(300, 500, 2)
-        window_width = np.random.randint(10, 50, 2)
-        window_amp = np.random.uniform(0.3, 0.8, 2)
-        window = gaussian(w, window_amp[0], window_center[0], window_width[0]) + \
-                 gaussian(w, window_amp[1], window_center[1], window_width[1])
+
+        #window_center = np.random.randint(300, 500, 2)
+        window_width = np.random.randint(150, 350, 1)
+        window_center = np.random.randint(300, 600, 1) #(400,600)
+        #window_width = np.random.randint(100, 300, 1) #(30, 100)
+        window_amp = np.random.uniform(0.8, 1, 1)
+        window = gaussian(w, window_amp[0], window_center[0], window_width[0]/2.355) #+ \
+                # gaussian(w, window_amp[1], window_center[1], window_width[1])
     
-    conv_a = 1
+    conv_a = 1.2
+    
     scale = window * 1 * (1 + random_waveform(len(window), 10, t_max=40))
     
     aug_sd = np.random.uniform(2.5, 3.0, len(scale))
     aug_x0 = np.random.uniform(0.25, 0.3, len(scale))
+
     for i in range(len(w)):
+            
         y = translated_image.T[i]
 
         if aug_conv:
             y_aug = aug_convolution(x, y, conv_a, scale[i])
             idx = int(log_fn(scale[i], *params))
             img_aug.T[i] = y_aug[idx:idx + len(y)] * (1 + (random_waveform(len(y), 10, t_max=10) * scale[i]))
+        #    if i == 450:
+        #        y_aug = aug_convolution(x, y, conv_a, scale[i], debug=True)
         else:
             y_aug = aug(x, y, scale[i], aug_sd[i], aug_x0[i]*scale[i], debug=False) 
+            
+         #   if i == 450:
+         #       y_aug = aug(x, y, scale[i], aug_sd[i], aug_x0[i]*scale[i], debug=True)
+                
             img_aug.T[i] = y_aug * (1 + (random_waveform(len(y), 10, t_max=10) * scale[i]))
     
     #img_aug = cv2.medianBlur(img_aug, kernel_size)
     
     M, N = (np.array(img.shape) // 5)
-   # img = (cv2.resize(translated_image, (N, M)) * 255 / np.max(img)) .astype(np.uint8)
-   # img_aug = (cv2.resize(img_aug, (N, M)) * 255 / np.max(img_aug)).astype(np.uint8)
+
     img = cv2.resize(translated_image, (N, M))
     img_aug = cv2.resize(img_aug, (N, M))
     
@@ -167,7 +186,7 @@ def make_train_data(filepath):
     train_Y = []
     
     with h5py.File(filepath,'r') as fi:
-        imarr = np.array(fi['/zraw/FLASH.DIAG/CAMERA/OTR9FL2XTDS/dGroup/value'])[:,:,:].astype(np.float32)
+        imarr = np.array(fi['/zraw/FLASH.DIAG/CAMERA/OTR9FL2XTDS/dGroup/value'])[:,600:1300,600:2000].astype(np.float32)
         for im in tqdm(imarr[:], desc='Images'):
             for i in range(3):
                 aug_conv = np.random.choice([True, False])
@@ -188,9 +207,9 @@ def make_train_data_npy(filepath):
     for sase_off in tqdm(sase_off_files[:], desc='Files'):
         images_sase_off = np.load(sase_off).astype(np.float32)
         for img_off in tqdm(images_sase_off, desc='Images'):
-            for i in range(3):
+            for i in range(4):
                 aug_conv = np.random.choice([True, False])
-                imgy, imgx = augmentations(img_off)
+                imgy, imgx = augmentations(img_off, aug_conv)
                 train_X.append(imgx)
                 train_Y.append(imgy)
 
@@ -212,11 +231,11 @@ params, cov = curve_fit(log_fn, s, ii, p0=[40])
 #%%
 if __name__ == "__main__":
     
-    form = "npy" # "h5"
+    form = "h5" # "h5" for polarix data from desy cloud "npy" for data from sciebo
     
     if form == "h5":
         
-        filepath = "run_50631_data.h5"
+        filepath = "run_44525_data.h5"
         train_X, train_Y = make_train_data(filepath)
     
         train_data = pd.DataFrame({'train_X' : train_X , 'train_Y' : train_Y})
@@ -224,7 +243,7 @@ if __name__ == "__main__":
         current_datetime = datetime.datetime.now()
         datetime_string = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
         
-        train_data.to_pickle(f'data/train_data_50631-{datetime_string}.pkl')
+        train_data.to_pickle(f'data/train_data_44525-{datetime_string}.pkl')
         
     if form == "npy":
         
