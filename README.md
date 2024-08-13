@@ -9,13 +9,13 @@ The training samples were synthetically generated from SASE-off images through 2
 # Models
 Two models are used for this task. 
 
+## U-net Architecture
 A standard U-net architecture to take in the SASE-on image and predict the SASE-off image, identifying the characteristic features of SASE emission. This would need fine-tuning when testing on new data since the electron bucnh shape varies between runs. 
 
-## U-net Architecture
 ![U-Net Architecture](images/unet_architecture.png)
 
+## Y-net Architecture
 Since the shape of the electron distribution varies between runs, a 'Y-net' architecture takes in both a SASE-on image and a reference SASE-off image to predict the corresponding SASE-off image.
 
-## Y-net Architecture
 ![Y-Net Architecture](images/ynet_architecture.png)
 
