@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.optimize import curve_fit
 from scipy.stats import gamma
-from scipy.signal import convolve
+from scipy.signal import convolve, fftconvolve
+from scipy.ndimage import shift
 from tqdm import tqdm
 from pathlib import Path
 import cv2, h5py, datetime
@@ -195,15 +196,42 @@ def aug_convolution(x, y, a, scale, debug=False):
     return y_aug
 
 
+def align_image_off(image_on, image_off):
+    
+    correlation = fftconvolve(image_on, image_off[::-1, ::-1], mode='full')
+
+    # Step 2: Find the location of the peak in the cross-correlation matrix
+    y_peak, x_peak = np.unravel_index(np.argmax(correlation), correlation.shape)
+
+    # Step 3: Calculate the shift required to align the images
+    # The center of the cross-correlation matrix corresponds to zero shift
+    y_shift = y_peak - (image_on.shape[0] - 1)
+    x_shift = x_peak - (image_on.shape[1] - 1)
+    
+    aligned_image_off = shift(image_off, shift=(y_shift, x_shift), mode='constant', cval=0.0)
+    aligned_image_off = get_ROI(aligned_image_off, 1e-4)
+    
+    return aligned_image_off
+    
+    
 def augmentations(image, image_ref, aug_conv=False):
     
     img, img_ref = np.copy(image), np.copy(image_ref)
+    
+    kernel_size = 5
+    
+    img = cv2.medianBlur(img, kernel_size)
+    img = get_ROI(img, 1e-4)
+    
+    img_ref = cv2.medianBlur(img_ref, kernel_size)
+    img_ref = get_ROI(img_ref, 1e-4)
+    img_ref = align_image_off(img, img_ref)
+    
+    
     img = img / np.max(img)
     img_ref = img / np.max(img_ref)
     
-    kernel_size = 5
-    img = cv2.medianBlur(img, kernel_size)
-    img_ref = cv2.medianBlur(img_ref, kernel_size)
+    
     img_aug = np.copy(img)
     
     tx = np.random.randint(-80,80)
