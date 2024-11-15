@@ -2,7 +2,13 @@ Some paths/info if you already want to look into the data:
  
 jan 24:
 filepath = '/asap3/flash/gpfs/fl21/2024/data/11019435/raw/hdf/online-0/fl2user2'
- 
+
+filename of run 50626 (SASE-ON): FLASH2_USER2_stream_2_run50526_file1_20240112T011036.1.h5 
+filename of run 50627 (SASE-OFF):FLASH2_USER2_stream_2_run50527_file1_20240112T011328.1.h5
+
+filename of run 50630 (SASE-ON): FLASH2_USER2_stream_2_run50530_file1_20240112T012719.1.h5
+filename of run 50631 (SASE-OFF): FLASH2_USER2_stream_2_run50531_file1_20240112T013640.1.h5
+
 within the h5 file:
 polarixpath = '/zraw/FLASH.DIAG/CAMERA/OTR9FL2XTDS/dGroup/value'
 gmdpath = '/FL2/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/'  # -> first value/index0
