@@ -13,8 +13,87 @@ from scipy.signal import convolve
 from tqdm import tqdm
 from pathlib import Path
 import cv2, h5py, datetime
+from scipy.ndimage import convolve as conv_2d
+from skimage.measure import label
 
 #%%
+def estimate_noise(image):
+    # This is a simple placeholder implementation, replace it with your own noise estimation method.
+    mean_noise = np.mean(image)
+    std_noise = np.std(image)
+    status = '' if std_noise > 0 else 'warning'
+    return mean_noise, std_noise, status
+
+
+def get_ROI(image, threshold_factor=1e-3, bits=12, disp_choice=0):
+    # Convert image to double precision (float64 in Python)
+    image = image.astype(np.float64)
+
+    # Define parameters
+    status = ''
+    beam_i_threshold = 0.122 * 2**bits  # if bits=12, beam_i_threshold=500
+
+    # Gaussian-like 7x7 kernel
+    M = np.array([
+        [0.0013, 0.0041, 0.0079, 0.0099, 0.0079, 0.0041, 0.0013],
+        [0.0041, 0.0124, 0.0241, 0.0301, 0.0241, 0.0124, 0.0041],
+        [0.0079, 0.0241, 0.0470, 0.0587, 0.0470, 0.0241, 0.0079],
+        [0.0099, 0.0301, 0.0587, 0.0733, 0.0587, 0.0301, 0.0099],
+        [0.0079, 0.0241, 0.0470, 0.0587, 0.0470, 0.0241, 0.0079],
+        [0.0041, 0.0124, 0.0241, 0.0301, 0.0241, 0.0124, 0.0041],
+        [0.0013, 0.0041, 0.0079, 0.0099, 0.0079, 0.0041, 0.0013]
+    ])
+
+    # Check noise level in the image
+    mean_noise1, _, status_noise1 = estimate_noise(image)
+    if status_noise1 == 'warning':
+        status += '- Noise estimate (1) failed -'
+
+    # Subtract noise and filter the image
+    image = image - mean_noise1
+    image_filt = conv_2d(image, M)
+
+    # Recalculate noise after filtering
+    mean_noise2, std_noise2, status_noise2 = estimate_noise(image_filt)
+    if status_noise2 == 'warning':
+        status += '- Noise estimate (2) failed -'
+
+    # Set the threshold for the ROI detection
+    threshold = mean_noise2 + threshold_factor * std_noise2
+    #print(threshold)
+    
+    # Find ROI by thresholding
+    num_pix_x, num_pix_y = image_filt.shape
+    candidate_list = np.argwhere(image_filt >= threshold)
+    num_candidates_start = candidate_list.shape[0]
+    
+    if num_candidates_start == 0:
+        status += '- ROI not found -'
+
+    # Create a binary ROI mask
+    roi = np.zeros_like(image_filt)
+    roi[image_filt >= threshold] = 1
+
+    # Find the starting point for the ROI selection using a simple average filter
+    image_filt_start = convolve(image_filt, np.ones((5, 5)) / 25)
+    start_roi_x = np.argmax(np.max(image_filt_start, axis=0))
+    start_roi_y = np.argmax(np.max(image_filt_start, axis=1))
+
+    # Label connected components and select the region around the start point
+    labeled_roi = label(roi)
+    selected_label = labeled_roi[start_roi_y, start_roi_x]
+    roi = (labeled_roi == selected_label).astype(int)
+    
+    # plt.imshow(roi)
+    
+    # Multiply the ROI mask with the original image
+    image_roi = roi * image
+
+    # Set negative pixels to zero
+    image_roi = np.maximum(image_roi, 0)
+    
+    return image_roi
+
 
 def gaussian(x, a, x0, sd):
     return a * np.exp(-0.5 * ((x - x0) / sd)**2)
@@ -52,6 +131,7 @@ def aug(x, y, a_sub, sd_add, x0_add, debug=False):
         plt.legend()
     return y_aug
 
+
 def heaviside(x, center, width, epsilon=1.0):
     e1 = center - width/2
     e2 = center + width/2
@@ -62,6 +142,7 @@ def heaviside(x, center, width, epsilon=1.0):
     window = np.concatenate((half1[:center], half2[center:]))
 
     return window
+
 
 def random_waveform(num_samples, num_components, t_max):
     # Generate random frequencies, phases, and amplitudes for each component
@@ -93,6 +174,7 @@ def plot_polarix(filename):
         col = i % b
         axs[row, col].imshow(images[i])
 
+
 def aug_convolution(x, y, a, scale, debug=False):
     if scale < 0.02:
         return y
@@ -111,6 +193,7 @@ def aug_convolution(x, y, a, scale, debug=False):
         plt.plot(y_ax_aug/5,y_aug)
 
     return y_aug
+
 
 def augmentations(image, image_ref, aug_conv=False):
     
@@ -134,17 +217,17 @@ def augmentations(image, image_ref, aug_conv=False):
     
     heaviside_window = np.random.choice([True, False])
     if heaviside_window:
-        #window_width = np.random.randint(30, 100)
-        window_center = np.random.randint(300, 600) #(400,600)
-        window_width = np.random.randint(150, 350)
+        window_width = np.random.randint(30, 100)
+        window_center = np.random.randint(400, 600) #(400,600)
+        #window_width = np.random.randint(150, 350)
         epsilon = np.random.randint(8, 12)
         window = heaviside(w, window_center, window_width, epsilon=epsilon)
     else:
 
         #window_center = np.random.randint(300, 500, 2)
-        window_width = np.random.randint(150, 350, 1)
-        window_center = np.random.randint(300, 600, 1) #(400,600)
-        #window_width = np.random.randint(100, 300, 1) #(30, 100)
+        #window_width = np.random.randint(150, 350, 1)
+        window_center = np.random.randint(400, 600, 1) #(400,600)
+        window_width = np.random.randint(30, 100, 1) #(30, 100)
         window_amp = np.random.uniform(0.8, 1, 1)
         window = gaussian(w, window_amp[0], window_center[0], window_width[0]/2.355) #+ \
                 # gaussian(w, window_amp[1], window_center[1], window_width[1])
@@ -192,8 +275,8 @@ def make_train_data(filepath):
     train_ref = []
     
     with h5py.File(filepath,'r') as fi:
-        imarr = np.array(fi['/zraw/FLASH.DIAG/CAMERA/OTR9FL2XTDS/dGroup/value'])[:,600:1300,600:2000].astype(np.float32)
-        for im in tqdm(imarr[:], desc='Images'):
+        imarr = np.array(fi['/zraw/FLASH.DIAG/CAMERA/OTR9FL2XTDS/dGroup/value']).astype(np.float32) #[:,600:1300,600:2000].astype(np.float32)
+        for im in tqdm(imarr[:500], desc='Images'):
             for i in range(3):
                 idx = np.random.randint(len(imarr))
                 im_ref = imarr[idx]
@@ -244,7 +327,7 @@ if __name__ == "__main__":
     
     if form == "h5":
         
-        filepath = "run_44522_data.h5"
+        filepath = "run_50631_data.h5"
         train_X, train_ref, train_Y = make_train_data(filepath)
     
         train_data = pd.DataFrame({'train_X' : train_X , 'train_ref' : train_ref, 'train_Y' : train_Y})
@@ -252,7 +335,7 @@ if __name__ == "__main__":
         current_datetime = datetime.datetime.now()
         datetime_string = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
         
-        train_data.to_pickle(f'data/train_data_44522-{datetime_string}.pkl')
+        train_data.to_pickle(f'data/train_data_50631-{datetime_string}.pkl')
         
     if form == "npy":
         
