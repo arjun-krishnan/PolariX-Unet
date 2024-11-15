@@ -225,8 +225,6 @@ def augmentations(image, image_ref, aug_conv=False):
     
     img_ref = cv2.medianBlur(img_ref, kernel_size)
     img_ref = get_ROI(img_ref, 1e-4)
-    img_ref = align_image_off(img, img_ref)
-    
     
     img = img / np.max(img)
     img_ref = img / np.max(img_ref)
@@ -239,6 +237,7 @@ def augmentations(image, image_ref, aug_conv=False):
     translation_matrix = np.float32([[1, 0, tx], [0, 1, ty]])
 
     translated_image = cv2.warpAffine(img, translation_matrix, (img.shape[1], img.shape[0]))
+    img_ref = align_image_off(translated_image, img_ref)
     
     x = np.array([i for i in range(img.shape[0])])
     w = np.array([i for i in range(img.shape[-1])])
@@ -286,6 +285,7 @@ def augmentations(image, image_ref, aug_conv=False):
             img_aug.T[i] = y_aug * (1 + (random_waveform(len(y), 10, t_max=10) * scale[i]))
     
     #img_aug = cv2.medianBlur(img_aug, kernel_size)
+    img_aug = get_ROI(img_aug, 1e-4)
     
     M, N = (np.array(img.shape) // 5)
 
