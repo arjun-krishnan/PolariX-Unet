@@ -10,5 +10,4 @@ test_data/*
 docs/*
 results.zip
 run*
-results/*.pdf
-results/*.pptx
+results/*
