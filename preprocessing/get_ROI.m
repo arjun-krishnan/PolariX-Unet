@@ -39,7 +39,7 @@ beam_i_threshold = 0.122*2^(bits); % if bits=12,beam_i_threshold=500;
       0.0013    0.0041    0.0079    0.0099    0.0079    0.0041    0.0013];
 
 %% Check noise level in the image
-[mean_noise1,~,status_noise1] = estimate_noise(image);
+[mean_noise1,~,status_noise1] = estimate_noise(image)
 
 if strcmp(status_noise1,'warning') 
     status = append(status,'- Noise estimate (1) failed -');
@@ -98,7 +98,7 @@ roi = bwselect(logical(roi),start_roi_x,start_roi_y);
 image_roi = roi.*image;
 
 % 21/03/23 new expression to set negaitve pixels to zero
-image_roi = max(image_roi,0);
+%image_roi = max(image_roi,0);
 
 % 21/03/23 this was replaced with above expression
 %roi_thres_noise = image_roi < 0; % logical array for pxels < 0

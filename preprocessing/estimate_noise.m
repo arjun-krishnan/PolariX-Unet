@@ -4,6 +4,7 @@ image=double(image);
 
 length_image = numel(image);
 [y_data,x_data] = hist(image(1:length_image),length([min(image(1:length_image)):max(image(1:length_image))]));
+plot(x_data,y_data)
 
 mean_noise_stat = sum(x_data.*y_data./sum(y_data));
 var_noise_stat = sum(x_data.^2.*y_data./sum(y_data));
