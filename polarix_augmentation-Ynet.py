@@ -18,6 +18,16 @@ from scipy.ndimage import convolve as conv_2d
 from skimage.measure import label
 
 #%%
+
+def log_fn(x, a):
+    y = a * np.log(x+1)
+    return y
+
+s = [0, 0.1, 0.3, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
+ii = [0, 5, 15, 25, 35, 40, 45, 50, 55, 60, 70]
+params, cov = curve_fit(log_fn, s, ii, p0=[40])
+
+
 def estimate_noise(image):
     # This is a simple placeholder implementation, replace it with your own noise estimation method.
     mean_noise = np.mean(image)
@@ -227,7 +237,7 @@ def augmentations(image, image_ref, aug_conv=False):
     img_ref = get_ROI(img_ref, 1e-4)
     
     img = img / np.max(img)
-    img_ref = img / np.max(img_ref)
+    img_ref = img_ref / np.max(img_ref)
     
     
     img_aug = np.copy(img)
@@ -289,9 +299,9 @@ def augmentations(image, image_ref, aug_conv=False):
     
     M, N = (np.array(img.shape) // 5)
 
-    img = cv2.resize(translated_image, (N, M))
-    img_aug = cv2.resize(img_aug, (N, M))
-    img_ref = cv2.resize(img_ref, (N, M))
+    img = cv2.resize(translated_image, (N, M)).astype('float32')
+    img_aug = cv2.resize(img_aug, (N, M)).astype('float32')
+    img_ref = cv2.resize(img_ref, (N, M)).astype('float32')
     
     return img, img_ref, img_aug
 
@@ -304,12 +314,12 @@ def make_train_data(filepath):
     
     with h5py.File(filepath,'r') as fi:
         imarr = np.array(fi['/zraw/FLASH.DIAG/CAMERA/OTR9FL2XTDS/dGroup/value']).astype(np.float32) #[:,600:1300,600:2000].astype(np.float32)
-        for im in tqdm(imarr[:500], desc='Images'):
+        for img_off in tqdm(imarr[:500], desc='Images'):
             for i in range(3):
                 idx = np.random.randint(len(imarr))
-                im_ref = imarr[idx]
+                img_ref = imarr[idx]
                 aug_conv = np.random.choice([True, False])
-                imgy, img_ref, imgx = augmentations(im, im_ref, aug_conv)
+                imgy, img_ref, imgx = augmentations(img_off, img_ref, aug_conv)
                 train_X.append(imgx)
                 train_Y.append(imgy)
                 train_ref.append(img_ref)
@@ -320,38 +330,33 @@ def make_train_data(filepath):
 def make_train_data_npy(filepath):
     sase_off_dir = Path(filepath)
     sase_off_files = [file for file in sase_off_dir.glob("*.npy")]
-    print(sase_off_files)
+   # print(sase_off_files)
+    
     train_X = []
     train_Y = []
-
+    train_ref = []
+    
     for sase_off in tqdm(sase_off_files[:], desc='Files'):
         images_sase_off = np.load(sase_off).astype(np.float32)
-        for img_off in tqdm(images_sase_off, desc='Images'):
-            for i in range(4):
+        for img_off in tqdm(images_sase_off[:], desc='Images'):
+            for i in range(5):
+                idx = np.random.randint(len(images_sase_off))
+                img_ref = images_sase_off[idx]
                 aug_conv = np.random.choice([True, False])
-                imgy, imgx = augmentations(img_off, aug_conv)
+                imgy, img_ref, imgx = augmentations(img_off, img_ref, aug_conv)
                 train_X.append(imgx)
                 train_Y.append(imgy)
-
+                train_ref.append(img_ref)
 
     print(f"Size of the training set : {len(train_X)}")
-    return train_X, train_Y
+    return train_X, train_ref, train_Y
 
-#%%
-
-def log_fn(x, a):
-    y = a * np.log(x+1)
-    return y
-
-s = [0, 0.1, 0.3, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
-ii = [0, 5, 15, 25, 35, 40, 45, 50, 55, 60, 70]
-params, cov = curve_fit(log_fn, s, ii, p0=[40])
 
 
 #%%
 if __name__ == "__main__":
     
-    form = "h5" # "h5" for polarix data from desy cloud "npy" for data from sciebo
+    form = "npy" # "h5" for polarix data from desy cloud "npy" for data from sciebo
     
     if form == "h5":
         
@@ -363,12 +368,16 @@ if __name__ == "__main__":
         current_datetime = datetime.datetime.now()
         datetime_string = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
         
-        train_data.to_pickle(f'data/train_data_50631-{datetime_string}.pkl')
+        train_data.to_pickle(f'data/train_data_50631-{datetime_string}-Ynet.pkl')
         
     if form == "npy":
         
         filepath = "data/sase-off"
-        train_X, train_Y = make_train_data_npy(filepath)
+        train_X, train_ref, train_Y = make_train_data_npy(filepath)
 
-        train_data = pd.DataFrame({'train_X' : train_X , 'train_Y' : train_Y})
-        train_data.to_pickle('data/train_data_2023_11-08.pkl')
+        train_data = pd.DataFrame({'train_X' : train_X , 'train_ref' : train_ref, 'train_Y' : train_Y})
+        
+        current_datetime = datetime.datetime.now()
+        datetime_string = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+        
+        train_data.to_pickle(f'data/train_data_2023-11-08-{datetime_string}-Ynet.pkl')
