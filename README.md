@@ -1,5 +1,6 @@
 # PolariX-Unet
 A U-Net architecture implementation for the recreation of PolariX lasing-off images. This can be used to determine the Self-Amplified Spontaneous Emission (SASE) pulse profile and energy. 
+[See this presentation for more details] (PolariX_Analysis_Electron_Bunch_Diagnostics_Workshop.pdf)
 
 # Training sample generation
 The training samples were synthetically generated from SASE-off images through 2 different methods. 
